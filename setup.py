@@ -31,5 +31,5 @@ setup(
         'Programming Language :: Python :: 3.5',
     ],
     keywords='stocks options finance market shares greeks implied volatility real-time',
-    install_requires=['scipy', 'requests', 'bs4'],
+    install_requires=['scipy', 'requests', 'beautifulsoup4'],
 )
