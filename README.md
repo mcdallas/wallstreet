@@ -1,2 +1,2 @@
 # wallstreet
-Real time stock and option data.
+Real time Stock and Option tools.
