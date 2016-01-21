@@ -1,9 +1,11 @@
 import requests
 import re, json
-from dateutil import parser
+
 from datetime import datetime, date
+
 from wallstreet.constants import DATE_FORMAT, DATETIME_FORMAT
 from wallstreet.blackandscholes import riskfree, BlackandScholes
+
 from functools import wraps
 
 
@@ -36,7 +38,10 @@ class Stock:
         quote = quote.upper()
         query = str(quote)
         if exchange: query = exchange.upper() + ":" + quote
-        r = requests.get(__class__.G_API + query)
+
+        if not hasattr(self, 'session'):
+            self.session = requests.Session()
+        r = self.session.get(__class__.G_API + query)
 
         jayson = r.text.replace('\n','')
         jayson = json.loads(jayson[2:])[0]
@@ -58,7 +63,7 @@ class Stock:
         except ValueError:
             self.change = jayson['c']
             self.cp = jayson['cp']
-        self._last_trade = parser.parse(jayson['lt_dts'])
+        self._last_trade = datetime.strptime(jayson['lt_dts'], '%Y-%m-%dT%H:%M:%SZ')
 
     def update(self):
         self.__init__(self.ticker)
@@ -89,7 +94,9 @@ class Option:
         if m: query += '&expm=' + str(m)
         if y: query += '&expy=' + str(y)
 
-        r = requests.get(__class__.G_API + query + '&output=json')
+        if not hasattr(self, 'session'):
+            self.session = requests.Session()
+        r = self.session.get(__class__.G_API + query + '&output=json')
         if r.status_code == 400:
             raise LookupError('Ticker symbol not found.')
 
@@ -140,6 +147,8 @@ class Call(Option):
         elif self.__class__.Option_type == 'Put':
             self.data = self.puts
 
+        self.T = (self._expiration - date.today()).days/365
+        self.q = 0
         self.ticker = quote
         self.strike = None
         self.strikes = tuple(parse(dic['strike']) for dic in self.data
@@ -174,9 +183,7 @@ class Call(Option):
             self._volume = parse(d['vol'])
             self._open_interest = parse(d['oi'])
             self.code = d['s']
-            self.T = (self._expiration - date.today()).days/365
             self.ticker = self.code[:-15]
-            self.q = 0
             self.BandS = BlackandScholes(
                     self.underlying.price,
                     self.strike,
@@ -234,7 +241,7 @@ class Call(Option):
 
     @strike_required
     def implied_volatility(self):
-        return self.BandS.implied_volatility()
+        return self.BandS.impvol
 
     @strike_required
     def delta(self):
