@@ -86,7 +86,7 @@ class Option:
     G_API = 'https://www.google.com/finance/option_chain?q='
 
     def __init__(self,quote, d=date.today().day, m=date.today().month,
-                 y=date.today().year):
+                 y=date.today().year, strict=False):
         quote = quote.upper()
         query = str(quote)
 
@@ -116,7 +116,7 @@ class Option:
             self.calls = data['calls']
             self.puts = data['puts']
         except KeyError:
-            if all((d,m,y)) and 'loop' not in locals():
+            if all((d,m,y)) and 'loop' not in locals() and not strict:
                 closest_date = min(self._exp, key=lambda x: abs(x - self._expiration))
                 print('No options listed for given date, using %s instead' % closest_date.strftime(DATE_FORMAT))
                 loop = True
@@ -139,7 +139,7 @@ class Call(Option):
     def __init__(self, quote, d=date.today().day, m=date.today().month,
                  y=date.today().year, strike=None, strict=False):
         quote = quote.upper()
-        kw = {'d': d, 'm': m, 'y': y}
+        kw = {'d': d, 'm': m, 'y': y, 'strict': strict}
         super().__init__(quote, **kw)
 
         if self.__class__.Option_type == 'Call':
@@ -238,6 +238,10 @@ class Call(Option):
     def open_interest(self):
         return self._open_interest
 
+    @property
+    @strike_required
+    def volume(self):
+        return self._volume
 
     @strike_required
     def implied_volatility(self):
