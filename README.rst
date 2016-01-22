@@ -67,10 +67,19 @@ or
   Put(ticker=GOOG, expiration='22-01-2016')
 
 
+Installation
+------------
+Simply
+
+.. code-block
+    $ pip install wallstreet
+
+
 Dependencies
 ------------
 
-Wallstreet requires to have Scipy, requests and bs4 (BeautifulSoup4) installed.
+Wallstreet requires Scipy, requests and bs4 (BeautifulSoup4). Requests and bs4 are
+installed for you when pip installing but you need to have Scipy pre-installed.
 
 
 Stock Attributes
