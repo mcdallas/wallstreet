@@ -10,7 +10,7 @@ from wallstreet.constants import *
 
 def riskfree():
     r = requests.get(TREASURY_URL)
-    soup = BeautifulSoup(r.text, 'lxml')
+    soup = BeautifulSoup(r.text, 'html.parser')
 
     table = soup.find("table", attrs={'class' : 't-chart'})
     rows= table.find_all('tr')
