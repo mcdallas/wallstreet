@@ -1,7 +1,7 @@
 Wallstreet: Real time Stock and Option tools
 --------------------------------------------
 
-Wallstreet is a Python library for monitoring and analyzing real time Stock and
+Wallstreet is a Python 3 library for monitoring and analyzing real time Stock and
 Option data. Quotes are provided from the Google Finance API. Wallstreet requires
 minimal input from the user, it uses available online data to calculate option
 greeks and even scrapes the US Treasury website to get the current risk free rate.
