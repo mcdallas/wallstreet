@@ -71,7 +71,8 @@ Installation
 ------------
 Simply
 
-.. code-block
+.. code-block:: bash
+
     $ pip install wallstreet
 
 
