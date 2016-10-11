@@ -80,10 +80,9 @@ class Stock:
             self._session = requests.Session()
         r = self._session.get(__class__._G_API + query)
 
-        jayson = r.text.replace('\n','')
-        jayson = json.loads(jayson[2:])[0]
-
         try:
+            jayson = r.text.replace('\n','')
+            jayson = json.loads(jayson[2:])[0]
             self.ticker = jayson['t']
         except:
             self.ticker = None
