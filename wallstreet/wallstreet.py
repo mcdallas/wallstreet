@@ -2,6 +2,7 @@ import requests
 import re, json
 
 from datetime import datetime, date
+from time import mktime
 
 from wallstreet.constants import DATE_FORMAT, DATETIME_FORMAT
 from wallstreet.blackandscholes import riskfree, BlackandScholes
@@ -11,7 +12,10 @@ from functools import wraps
 
 def parse(val):
     if val == '-':
+        return 0
+    elif val is None:
         return None
+
     if isinstance(val, str):
         val = val.replace(',', '')
     val = float(val)
@@ -32,16 +36,43 @@ def strike_required(func):
 rate = riskfree()
 
 class Stock:
-    G_API = 'http://finance.google.com/finance/info?client=ig&q='
+    _G_API = 'http://finance.google.com/finance/info?client=ig&q='
+    _Y_API = 'https://query2.finance.yahoo.com/v7/finance/options/'
 
-    def __init__(self, quote, exchange=None):
+    def __init__(self, quote, exchange=None, source='google'):
         quote = quote.upper()
         query = str(quote)
         if exchange: query = exchange.upper() + ":" + quote
+        self.source = source.lower()
 
+        if self.source == 'google':
+            self._google(query)
+        elif self.source == 'yahoo':
+            self._yahoo(query)
+
+    def _yahoo(self, query):
+        if not hasattr(self, 'session_y'):
+            self._session_y = requests.Session()
+        r = self._session_y.get(__class__._Y_API + query)
+
+        if r.status_code == 404:
+            raise LookupError('Ticker symbol not found.')
+
+        jayson = r.json()['optionChain']['result'][0]['quote']
+
+        self.ticker = jayson['symbol']
+        self._price = jayson['regularMarketPrice']
+        self.currency = jayson['currency']
+        self.exchange = jayson['exchange']
+        self.change = jayson['regularMarketChange']
+        self.cp = jayson['regularMarketChangePercent']
+        self._last_trade = datetime.fromtimestamp(jayson['regularMarketTime'])
+
+
+    def _google(self, query):
         if not hasattr(self, 'session'):
-            self.session = requests.Session()
-        r = self.session.get(__class__.G_API + query)
+            self._session = requests.Session()
+        r = self._session.get(__class__._G_API + query)
 
         jayson = r.text.replace('\n','')
         jayson = json.loads(jayson[2:])[0]
@@ -51,7 +82,7 @@ class Stock:
         except:
             self.ticker = None
 
-        if r.status_code == 400 or self.ticker != quote:
+        if r.status_code == 400 or self.ticker != query:
             raise LookupError('Ticker symbol not found. Try adding the exchange parameter')
 
         self.id= jayson["id"]
@@ -65,8 +96,9 @@ class Stock:
             self.cp = jayson['cp']
         self._last_trade = datetime.strptime(jayson['lt_dts'], '%Y-%m-%dT%H:%M:%SZ')
 
+
     def update(self):
-        self.__init__(self.ticker)
+        self.__init__(self.ticker, source=self.source)
 
     def __repr__(self):
         return 'Stock(ticker=%s, price=%s)' % (self.ticker, self.price)
@@ -83,10 +115,62 @@ class Stock:
 
 
 class Option:
-    G_API = 'https://www.google.com/finance/option_chain?q='
+    _G_API = 'https://www.google.com/finance/option_chain?q='
+    _Y_API = 'https://query2.finance.yahoo.com/v7/finance/options/'
 
     def __init__(self,quote, d=date.today().day, m=date.today().month,
-                 y=date.today().year, strict=False):
+                 y=date.today().year, strict=False, source='google'):
+
+        self.source = source.lower()
+        self.underlying = Stock(quote, source=self.source)
+
+        if self.source == 'google':
+            self._google(quote, d, m, y, strict)
+
+        elif self.source == 'yahoo':
+            self._yahoo(quote, d, m, y, strict)
+
+        self.expirations = [exp.strftime(DATE_FORMAT) for exp in self._exp]
+        self.expiration = date(y,m,d)
+
+
+        try:
+            self.calls = self.data['calls']
+            self.puts = self.data['puts']
+            assert self.calls and self.puts
+
+        except (KeyError, AssertionError):
+            if all((d,m,y)) and 'loop' not in locals() and not strict:
+                closest_date = min(self._exp, key=lambda x: abs(x - self._expiration))
+                print('No options listed for given date, using %s instead' % closest_date.strftime(DATE_FORMAT))
+                loop = True
+                self.__init__(quote, closest_date.day, closest_date.month, closest_date.year, source=source)
+            else:
+                raise ValueError('Possible expiration dates for this stock are:', self.expirations) from None
+
+
+    def _yahoo(self, quote, d, m, y, strict):
+        epoch = int(round(mktime(date(y, m, d).timetuple())/86400,0)*86400)
+
+        if not hasattr(self, 'session_y'):
+            self.session_y = requests.Session()
+        r = self.session_y.get(__class__._Y_API + quote + '?date=' + str(epoch))
+
+        if r.status_code == 404:
+            raise LookupError('Ticker symbol not found.')
+
+        json = r.json()
+
+        try:
+            self.data = json['optionChain']['result'][0]['options'][0]
+        except IndexError:
+            raise LookupError('No options listed for this stock.')
+
+        self._exp = [ date.fromtimestamp(i) for i in json['optionChain']['result'][0]['expirationDates'] ]
+
+
+    def _google(self, quote, d, m, y, strict):
+
         quote = quote.upper()
         query = str(quote)
 
@@ -96,33 +180,19 @@ class Option:
 
         if not hasattr(self, 'session'):
             self.session = requests.Session()
-        r = self.session.get(__class__.G_API + query + '&output=json')
+        r = self.session.get(__class__._G_API + query + '&output=json')
         if r.status_code == 400:
             raise LookupError('Ticker symbol not found.')
 
         valid_json = re.sub(r'(?<={|,)([a-zA-Z][a-zA-Z0-9_]*)(?=:)', r'"\1"', r.text)
-        data = json.loads(valid_json)
+        self.data = json.loads(valid_json)
 
-        if 'expirations' not in data:
+        if 'expirations' not in self.data:
             raise LookupError('No options listed for this stock.')
 
         self._exp = [date(int(dic['y']), int(dic['m']), int(dic['d']))
-                     for dic in data['expirations']]
-        self.expiration = date(y,m,d)
-        self.expirations = [exp.strftime(DATE_FORMAT) for exp in self._exp]
-        self.underlying = Stock(quote)
+                     for dic in self.data['expirations']]
 
-        try:
-            self.calls = data['calls']
-            self.puts = data['puts']
-        except KeyError:
-            if all((d,m,y)) and 'loop' not in locals() and not strict:
-                closest_date = min(self._exp, key=lambda x: abs(x - self._expiration))
-                print('No options listed for given date, using %s instead' % closest_date.strftime(DATE_FORMAT))
-                loop = True
-                self.__init__(quote, closest_date.day, closest_date.month, closest_date.year)
-            else:
-                raise ValueError('Possible expiration dates for this stock are:', self.expirations) from None
 
     @property
     def expiration(self):
@@ -137,9 +207,9 @@ class Call(Option):
     Option_type = 'Call'
 
     def __init__(self, quote, d=date.today().day, m=date.today().month,
-                 y=date.today().year, strike=None, strict=False):
+                 y=date.today().year, strike=None, strict=False, source='google'):
         quote = quote.upper()
-        kw = {'d': d, 'm': m, 'y': y, 'strict': strict}
+        kw = {'d': d, 'm': m, 'y': y, 'strict': strict, 'source': source}
         super().__init__(quote, **kw)
 
         if self.__class__.Option_type == 'Call':
@@ -172,18 +242,19 @@ class Call(Option):
                 d = dic
                 break
         if d:
-            self._price = parse(d['p'])
-            self.id = d['cid']
-            self.exchange = d['e']
-            self._bid = parse(d['b'])
-            self._ask = parse(d['a'])
+            self._price = parse(d.get('p')) or d.get('lastPrice')
+            self.id = d.get('cid')
+            self.exchange = d.get('e')
+            self._bid = parse(d.get('b')) or d.get('bid', 0)
+            self._ask = parse(d.get('a')) or d.get('ask', 0)
             self.strike = parse(d['strike'])
-            self._change = parse(d.get('c', 0)) # change in currency
-            self._cp = parse(d.get('cp', 0))  # percentage change
-            self._volume = parse(d['vol'])
-            self._open_interest = parse(d['oi'])
-            self.code = d['s']
-            self.ticker = self.code[:-15]
+            self._change = parse(d.get('c')) or d.get('change', 0) # change in currency
+            self._cp = parse(d.get('cp', 0)) or d.get('percentChange', 0) # percentage change
+            self._volume = parse(d.get('vol')) or d.get('volume', 0)
+            self._open_interest = parse(d.get('oi')) or d.get('openInterest', 0)
+            self.code = d.get('s') or d.get('contractSymbol')
+            self.itm = ((self.__class__.Option_type == 'Call' and self.underlying.price > self.strike) or
+                (self.__class__.Option_type == 'Put' and self.underlying.price < self.strike)) # in the money
             self.BandS = BlackandScholes(
                     self.underlying.price,
                     self.strike,
@@ -206,7 +277,7 @@ class Call(Option):
     def update(self):
         self.__init__(self.ticker, self._expiration.day,
                      self._expiration.month, self._expiration.year,
-                     self.strike)
+                     self.strike, source=self.source)
 
     @property
     @strike_required
