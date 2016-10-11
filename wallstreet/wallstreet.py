@@ -51,6 +51,7 @@ class Stock:
             self._yahoo(query)
 
     def _yahoo(self, query):
+        ''' Collects data from Yahoo Finance API  '''
         if not hasattr(self, 'session_y'):
             self._session_y = requests.Session()
         r = self._session_y.get(__class__._Y_API + query)
@@ -70,6 +71,7 @@ class Stock:
 
 
     def _google(self, query):
+        ''' Collects data from Google Finance API '''
         if not hasattr(self, 'session'):
             self._session = requests.Session()
         r = self._session.get(__class__._G_API + query)
@@ -150,6 +152,7 @@ class Option:
 
 
     def _yahoo(self, quote, d, m, y, strict):
+        ''' Collects data from Yahoo Finance API  '''
         epoch = int(round(mktime(date(y, m, d).timetuple())/86400,0)*86400)
 
         if not hasattr(self, 'session_y'):
@@ -167,7 +170,7 @@ class Option:
             raise LookupError('No options listed for this stock.')
 
         self._exp = [ date.fromtimestamp(i) for i in json['optionChain']['result'][0]['expirationDates'] ]
-
+        ''' Collects data from Google Finance API  '''
 
     def _google(self, quote, d, m, y, strict):
 
