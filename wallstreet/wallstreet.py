@@ -123,6 +123,11 @@ class Option:
     _G_API = 'https://www.google.com/finance/option_chain?q='
     _Y_API = 'https://query2.finance.yahoo.com/v7/finance/options/'
 
+    def __new__(cls, *args, **kwargs):
+        instance = super().__new__(cls)
+        instance._has_run = False  # This is to prevent an infinite loop
+        return instance
+
     def __init__(self,quote, d=date.today().day, m=date.today().month,
                  y=date.today().year, strict=False, source='google'):
 
@@ -145,10 +150,10 @@ class Option:
             assert self.calls and self.puts
 
         except (KeyError, AssertionError):
-            if all((d,m,y)) and 'loop' not in locals() and not strict:
+            if all((d, m, y)) and not self._has_run and not strict:
                 closest_date = min(self._exp, key=lambda x: abs(x - self._expiration))
                 print('No options listed for given date, using %s instead' % closest_date.strftime(DATE_FORMAT))
-                loop = True
+                self._has_run = True
                 self.__init__(quote, closest_date.day, closest_date.month, closest_date.year, source=source)
             else:
                 raise ValueError('Possible expiration dates for this stock are:', self.expirations) from None
