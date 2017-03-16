@@ -23,8 +23,9 @@ def parse(val):
         return int(val)
     return val
 
+
 def strike_required(func):
-    ''' Decorator for methods that require the set_strike method to be used first '''
+    """ Decorator for methods that require the set_strike method to be used first """
 
     @wraps(func)
     def deco(self, *args, **kwargs):
@@ -37,6 +38,7 @@ def strike_required(func):
 
 rate = riskfree()
 
+
 class Stock:
     _G_API = 'http://finance.google.com/finance/info?client=ig&q='
     _Y_API = 'https://query2.finance.yahoo.com/v7/finance/options/'
@@ -44,16 +46,17 @@ class Stock:
     def __init__(self, quote, exchange=None, source='google'):
         quote = quote.upper()
         query = str(quote)
-        if exchange: query = exchange.upper() + ":" + quote
-        self.source = source.lower()
+        if exchange:
+            query = exchange.upper() + ":" + quote
 
+        self.source = source.lower()
         if self.source == 'google':
             self._google(query)
         elif self.source == 'yahoo':
             self._yahoo(query)
 
     def _yahoo(self, query):
-        ''' Collects data from Yahoo Finance API  '''
+        """ Collects data from Yahoo Finance API  """
 
         if not hasattr(self, 'session_y'):
             self._session_y = requests.Session()
@@ -72,16 +75,15 @@ class Stock:
         self.cp = jayson['regularMarketChangePercent']
         self._last_trade = datetime.fromtimestamp(jayson['regularMarketTime'])
 
-
     def _google(self, query):
-        ''' Collects data from Google Finance API '''
+        """ Collects data from Google Finance API """
 
         if not hasattr(self, 'session'):
             self._session = requests.Session()
         r = self._session.get(__class__._G_API + query)
 
         try:
-            jayson = r.text.replace('\n','')
+            jayson = r.text.replace('\n', '')
             jayson = json.loads(jayson[2:])[0]
             self.ticker = jayson['t']
         except:
@@ -100,7 +102,6 @@ class Stock:
             self.change = jayson['c']
             self.cp = jayson['cp']
         self._last_trade = datetime.strptime(jayson['lt_dts'], '%Y-%m-%dT%H:%M:%SZ')
-
 
     def update(self):
         self.__init__(self.ticker, source=self.source)
@@ -128,21 +129,20 @@ class Option:
         instance._has_run = False  # This is to prevent an infinite loop
         return instance
 
-    def __init__(self,quote, d=date.today().day, m=date.today().month,
+    def __init__(self, quote, d=date.today().day, m=date.today().month,
                  y=date.today().year, strict=False, source='google'):
 
         self.source = source.lower()
         self.underlying = Stock(quote, source=self.source)
 
         if self.source == 'google':
-            self._google(quote, d, m, y, strict)
+            self._google(quote, d, m, y)
 
         elif self.source == 'yahoo':
-            self._yahoo(quote, d, m, y, strict)
+            self._yahoo(quote, d, m, y)
 
         self.expirations = [exp.strftime(DATE_FORMAT) for exp in self._exp]
-        self.expiration = date(y,m,d)
-
+        self.expiration = date(y, m, d)
 
         try:
             self.calls = self.data['calls']
@@ -158,11 +158,10 @@ class Option:
             else:
                 raise ValueError('Possible expiration dates for this stock are:', self.expirations) from None
 
+    def _yahoo(self, quote, d, m, y):
+        """ Collects data from Yahoo Finance API  """
 
-    def _yahoo(self, quote, d, m, y, strict):
-        ''' Collects data from Yahoo Finance API  '''
-
-        epoch = int(round(mktime(date(y, m, d).timetuple())/86400,0)*86400)
+        epoch = int(round(mktime(date(y, m, d).timetuple())/86400, 0)*86400)
 
         if not hasattr(self, 'session_y'):
             self.session_y = requests.Session()
@@ -178,10 +177,10 @@ class Option:
         except IndexError:
             raise LookupError('No options listed for this stock.')
 
-        self._exp = [ date.fromtimestamp(i) for i in json['optionChain']['result'][0]['expirationDates'] ]
+        self._exp = [date.fromtimestamp(i) for i in json['optionChain']['result'][0]['expirationDates']]
 
-    def _google(self, quote, d, m, y, strict):
-        ''' Collects data from Google Finance API  '''
+    def _google(self, quote, d, m, y):
+        """ Collects data from Google Finance API  """
 
         quote = quote.upper()
         query = str(quote)
@@ -204,7 +203,6 @@ class Option:
 
         self._exp = [date(int(dic['y']), int(dic['m']), int(dic['d']))
                      for dic in self.data['expirations']]
-
 
     @property
     def expiration(self):
@@ -235,7 +233,7 @@ class Call(Option):
         self.ticker = quote
         self.strike = None
         self.strikes = tuple(parse(dic['strike']) for dic in self.data
-                        if dic.get('p') != '-' )
+                             if dic.get('p') != '-')
         if strike:
             if strike in self.strikes:
                 self.set_strike(strike)
@@ -247,9 +245,8 @@ class Call(Option):
                     print('No option for given strike, using %s instead' % closest_strike)
                     self.set_strike(closest_strike)
 
-
     def set_strike(self, val):
-        ''' Specifies a specific strike price of the option chain'''
+        """ Specifies a strike price """
 
         d = {}
         for dic in self.data:
@@ -352,6 +349,7 @@ class Call(Option):
     @strike_required
     def theta(self):
         return self.BandS.theta()
+
 
 class Put(Call):
     Option_type = 'Put'
