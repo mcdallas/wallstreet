@@ -2,7 +2,7 @@ import requests
 import re, json
 
 from datetime import datetime, date
-from time import mktime
+from time import mktime, time
 
 from wallstreet.constants import DATE_FORMAT, DATETIME_FORMAT
 from wallstreet.blackandscholes import riskfree, BlackandScholes
@@ -177,7 +177,7 @@ class Option:
         except IndexError:
             raise LookupError('No options listed for this stock.')
 
-        self._exp = [date.fromtimestamp(i) for i in json['optionChain']['result'][0]['expirationDates']]
+        self._exp = [datetime.utcfromtimestamp(i).date() for i in json['optionChain']['result'][0]['expirationDates']]
 
     def _google(self, quote, d, m, y):
         """ Collects data from Google Finance API  """
