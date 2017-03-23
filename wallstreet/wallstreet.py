@@ -2,7 +2,7 @@ import requests
 import re, json
 
 from datetime import datetime, date
-from time import mktime, time
+from time import mktime
 
 from wallstreet.constants import DATE_FORMAT, DATETIME_FORMAT
 from wallstreet.blackandscholes import riskfree, BlackandScholes
@@ -24,6 +24,21 @@ def parse(val):
     return val
 
 
+class ClassPropertyDescriptor:
+    def __init__(self, f):
+        self.f = f
+
+    def __get__(self, obj, objtype):
+        return self.f.__get__(obj, objtype)()
+
+
+def classproperty(func):
+    if not isinstance(func, (classmethod, staticmethod)):
+        func = classmethod(func)
+
+    return ClassPropertyDescriptor(func)
+
+
 def strike_required(func):
     """ Decorator for methods that require the set_strike method to be used first """
 
@@ -35,8 +50,6 @@ def strike_required(func):
         else:
             raise AttributeError('Use set_strike() method first')
     return deco
-
-rate = riskfree()
 
 
 class Stock:
@@ -92,7 +105,7 @@ class Stock:
         if r.status_code == 400 or self.ticker != query:
             raise LookupError('Ticker symbol not found. Try adding the exchange parameter')
 
-        self.id= jayson["id"]
+        self.id = jayson["id"]
         self.exchange = jayson['e']
         self._price = parse(jayson['l'])
         try:
@@ -204,6 +217,13 @@ class Option:
         self._exp = [date(int(dic['y']), int(dic['m']), int(dic['d']))
                      for dic in self.data['expirations']]
 
+    @classproperty
+    def rate(cls):
+        if not hasattr(cls, '_rate'):
+            cls._rate = riskfree()
+
+        return cls._rate
+
     @property
     def expiration(self):
         return self._expiration.strftime(DATE_FORMAT)
@@ -272,7 +292,7 @@ class Call(Option):
                     self.strike,
                     self.T,
                     self._price,
-                    rate(self.T),
+                    self.rate(self.T),
                     self.__class__.Option_type,
                     self.q
                     )
