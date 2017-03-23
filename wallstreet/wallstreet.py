@@ -104,7 +104,7 @@ class Stock:
         except:
             self.ticker = None
 
-        if r.status_code == 400 or self.ticker != query:
+        if r.status_code == 400 or self.ticker != query.split(':')[-1]:
             raise LookupError('Ticker symbol not found. Try adding the exchange parameter')
         else:
             r.raise_for_status()
