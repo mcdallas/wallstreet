@@ -69,7 +69,7 @@ class Stock:
             self._yahoo(query)
 
     def _yahoo(self, query):
-        """ Collects data from Yahoo Finance API  """
+        """ Collects data from Yahoo Finance API """
 
         if not hasattr(self, 'session_y'):
             self._session_y = requests.Session()
@@ -77,6 +77,8 @@ class Stock:
 
         if r.status_code == 404:
             raise LookupError('Ticker symbol not found.')
+        else:
+            r.raise_for_status()
 
         jayson = r.json()['optionChain']['result'][0]['quote']
 
@@ -104,6 +106,8 @@ class Stock:
 
         if r.status_code == 400 or self.ticker != query:
             raise LookupError('Ticker symbol not found. Try adding the exchange parameter')
+        else:
+            r.raise_for_status()
 
         self.id = jayson["id"]
         self.exchange = jayson['e']
@@ -172,7 +176,7 @@ class Option:
                 raise ValueError('Possible expiration dates for this stock are:', self.expirations) from None
 
     def _yahoo(self, quote, d, m, y):
-        """ Collects data from Yahoo Finance API  """
+        """ Collects data from Yahoo Finance API """
 
         epoch = int(round(mktime(date(y, m, d).timetuple())/86400, 0)*86400)
 
@@ -182,6 +186,8 @@ class Option:
 
         if r.status_code == 404:
             raise LookupError('Ticker symbol not found.')
+        else:
+            r.raise_for_status()
 
         json = r.json()
 
@@ -193,7 +199,7 @@ class Option:
         self._exp = [datetime.utcfromtimestamp(i).date() for i in json['optionChain']['result'][0]['expirationDates']]
 
     def _google(self, quote, d, m, y):
-        """ Collects data from Google Finance API  """
+        """ Collects data from Google Finance API """
 
         quote = quote.upper()
         query = str(quote)
@@ -204,9 +210,13 @@ class Option:
 
         if not hasattr(self, 'session'):
             self.session = requests.Session()
+
         r = self.session.get(__class__._G_API + query + '&output=json')
+
         if r.status_code == 400:
             raise LookupError('Ticker symbol not found.')
+        else:
+            r.raise_for_status()
 
         valid_json = re.sub(r'(?<={|,)([a-zA-Z][a-zA-Z0-9_]*)(?=:)', r'"\1"', r.text)
         self.data = json.loads(valid_json)
