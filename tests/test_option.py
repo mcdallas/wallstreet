@@ -39,29 +39,18 @@ class CallTest(unittest.TestCase):
         s = wallstreet.Call('GOOG', d=16, m=6, y=2017, strike=800, source='yahoo')
         self.assertEqual(s.price, 40.39)
 
-    def test_implied_volatility(self):
-        s = wallstreet.Call('GOOG', d=16, m=6, y=2017, strike=800)
-        self.assertAlmostEqual(s.implied_volatility(), 0.10675562829797487)
+    def test_rate(self):
+        self.assertEqual(wallstreet.Option.rate(0.2328767123287671), 0.007689726027397261)
 
-    def test_implied_volatility_yahoo(self):
-        s = wallstreet.Call('GOOG', d=16, m=6, y=2017, strike=800, source='yahoo')
-        self.assertAlmostEqual(s.implied_volatility(), 0.11170413283822085)
-
-    def test_delta(self):
-        s = wallstreet.Call('GOOG', d=16, m=6, y=2017, strike=800)
-        self.assertAlmostEqual(s.delta(), 0.80957896307154442)
-
-    def test_delta_yahoo(self):
-        s = wallstreet.Call('GOOG', d=16, m=6, y=2017, strike=800, source='yahoo')
-        self.assertAlmostEqual(s.delta(), 0.7951752675694479)
-
-    def test_vega(self):
-        s = wallstreet.Call('GOOG', d=16, m=6, y=2017, strike=800)
-        self.assertAlmostEqual(s.vega(), 1.0940845695074586)
-
-    def test_vega_yahoo(self):
-        s = wallstreet.Call('GOOG', d=16, m=6, y=2017, strike=800, source='yahoo')
-        self.assertAlmostEqual(s.vega(), 1.1424473639351618)
+    def test_bs_called_with(self):
+        s = wallstreet.Call('GOOG', d=16, m=6, y=2017)
+        s.T = 0.2328767123287671
+        s.set_strike(800)
+        self.assertEqual(s.BandS.K, 800)
+        self.assertEqual(s.BandS.T, 0.2328767123287671)
+        self.assertEqual(s.BandS.S, 834.34)
+        self.assertEqual(s.BandS.opt_price, 40.39)
+        self.assertEqual(s.BandS.r, 0.007689726027397261)
 
     def test_underlying_price(self):
         s = wallstreet.Call('GOOG', d=16, m=6, y=2017, strike=800)
