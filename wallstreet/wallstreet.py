@@ -53,23 +53,24 @@ def strike_required(func):
 
 
 class Stock:
-    _G_API = 'http://finance.google.com/finance/info?client=ig&q='
+    _G_API = 'http://finance.google.com/finance/info'
     _Y_API = 'https://query2.finance.yahoo.com/v7/finance/options/'
 
     def __init__(self, quote, exchange=None, source='google'):
         quote = quote.upper()
-        query = str(quote)
-        if exchange:
-            query = exchange.upper() + ":" + quote
+        self._attempted_ticker = quote
+        self._attempted_exchange = exchange
 
         self.source = source.lower()
         if self.source == 'google':
-            self._google(query)
+            self._google(quote, exchange)
         elif self.source == 'yahoo':
-            self._yahoo(query)
+            self._yahoo(quote, exchange)
 
-    def _yahoo(self, query):
+    def _yahoo(self, quote, exchange=None):
         """ Collects data from Yahoo Finance API """
+
+        query = quote + "." + exchange.upper() if exchange else quote
 
         if not hasattr(self, 'session_y'):
             self._session_y = requests.Session()
@@ -89,13 +90,18 @@ class Stock:
         self.change = jayson['regularMarketChange']
         self.cp = jayson['regularMarketChangePercent']
         self._last_trade = datetime.fromtimestamp(jayson['regularMarketTime'])
+        self.name = jayson['longName']
 
-    def _google(self, query):
+    def _google(self, quote, exchange=None):
         """ Collects data from Google Finance API """
+
+        query = exchange.upper() + ":" + quote if exchange else quote
+
+        params = {'client': 'ig', 'q': query}
 
         if not hasattr(self, 'session'):
             self._session = requests.Session()
-        r = self._session.get(__class__._G_API + query)
+        r = self._session.get(__class__._G_API, params=params)
 
         try:
             jayson = r.text.replace('\n', '')
@@ -119,9 +125,10 @@ class Stock:
             self.change = jayson['c']
             self.cp = jayson['cp']
         self._last_trade = datetime.strptime(jayson['lt_dts'], '%Y-%m-%dT%H:%M:%SZ')
+        self.name = None
 
     def update(self):
-        self.__init__(self.ticker, source=self.source)
+        self.__init__(self._attempted_ticker, exchange=self._attempted_exchange, source=self.source)
 
     def __repr__(self):
         return 'Stock(ticker=%s, price=%s)' % (self.ticker, self.price)
@@ -138,7 +145,7 @@ class Stock:
 
 
 class Option:
-    _G_API = 'https://www.google.com/finance/option_chain?q='
+    _G_API = 'https://www.google.com/finance/option_chain'
     _Y_API = 'https://query2.finance.yahoo.com/v7/finance/options/'
 
     def __new__(cls, *args, **kwargs):
@@ -204,14 +211,18 @@ class Option:
         quote = quote.upper()
         query = str(quote)
 
-        if d: query += '&expd=' + str(d)
-        if m: query += '&expm=' + str(m)
-        if y: query += '&expy=' + str(y)
+        params = {'q': query}
+
+        if d: params['expd'] = str(d)
+        if m: params['expm'] = str(m)
+        if y: params['expy'] = str(y)
+
+        params['output'] = 'json'
 
         if not hasattr(self, 'session'):
             self.session = requests.Session()
 
-        r = self.session.get(__class__._G_API + query + '&output=json')
+        r = self.session.get(__class__._G_API, params=params)
 
         if r.status_code == 400:
             raise LookupError('Ticker symbol not found.')
