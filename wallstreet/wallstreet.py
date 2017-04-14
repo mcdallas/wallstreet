@@ -89,7 +89,7 @@ class Stock:
         self.exchange = jayson['exchange']
         self.change = jayson['regularMarketChange']
         self.cp = jayson['regularMarketChangePercent']
-        self._last_trade = datetime.fromtimestamp(jayson['regularMarketTime'])
+        self._last_trade = datetime.utcfromtimestamp(jayson['regularMarketTime'])
         self.name = jayson['longName']
 
     def _google(self, quote, exchange=None):
