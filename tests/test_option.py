@@ -1,6 +1,6 @@
 import unittest
 from wallstreet import wallstreet, blackandscholes
-from mockrequests import mockrequests
+from tests.mockrequests import mockrequests
 
 
 class CallTest(unittest.TestCase):
@@ -63,4 +63,3 @@ class CallTest(unittest.TestCase):
     def tearDown(self):
         wallstreet.requests = self.oldrequests
         blackandscholes.requests = self.oldrequests
-
