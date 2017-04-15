@@ -153,7 +153,7 @@ class Option:
         instance._has_run = False  # This is to prevent an infinite loop
         return instance
 
-    def __init__(self, quote, d=date.today().day, m=date.today().month,
+    def __init__(self, quote, opt_type, d=date.today().day, m=date.today().month,
                  y=date.today().year, strict=False, source='google'):
 
         self.source = source.lower()
@@ -169,9 +169,11 @@ class Option:
         self.expiration = date(y, m, d)
 
         try:
-            self.calls = self.data['calls']
-            self.puts = self.data['puts']
-            assert self.calls and self.puts
+            if opt_type == 'Call':
+                self.data = self.data['calls']
+            elif opt_type == 'Put':
+                self.data = self.data['puts']
+            assert self.data
 
         except (KeyError, AssertionError):
             if all((d, m, y)) and not self._has_run and not strict:
@@ -180,7 +182,7 @@ class Option:
                 self._has_run = True
                 self.__init__(quote, closest_date.day, closest_date.month, closest_date.year, source=source)
             else:
-                raise ValueError('Possible expiration dates for this stock are:', self.expirations) from None
+                raise ValueError('Possible expiration dates for this option are:', self.expirations) from None
 
     def _yahoo(self, quote, d, m, y):
         """ Collects data from Yahoo Finance API """
@@ -262,12 +264,7 @@ class Call(Option):
 
         quote = quote.upper()
         kw = {'d': d, 'm': m, 'y': y, 'strict': strict, 'source': source}
-        super().__init__(quote, **kw)
-
-        if self.__class__.Option_type == 'Call':
-            self.data = self.calls
-        elif self.__class__.Option_type == 'Put':
-            self.data = self.puts
+        super().__init__(quote, self.__class__.Option_type, **kw)
 
         self.T = (self._expiration - date.today()).days/365
         self.q = 0
