@@ -8,7 +8,7 @@ from wallstreet.constants import DATE_FORMAT, DATETIME_FORMAT
 from wallstreet.blackandscholes import riskfree, BlackandScholes
 
 from functools import wraps
-
+from collections import defaultdict
 
 def parse(val):
     if val == '-':
@@ -151,6 +151,7 @@ class Option:
     def __new__(cls, *args, **kwargs):
         instance = super().__new__(cls)
         instance._has_run = False  # This is to prevent an infinite loop
+        instance.skip_dates = defaultdict(set)
         return instance
 
     def __init__(self, quote, opt_type, d=date.today().day, m=date.today().month,
@@ -165,6 +166,7 @@ class Option:
         elif self.source == 'yahoo':
             self._yahoo(quote, d, m, y)
 
+        self._exp = [exp for exp in self._exp if exp not in self.skip_dates[opt_type]]
         self.expirations = [exp.strftime(DATE_FORMAT) for exp in self._exp]
         self.expiration = date(y, m, d)
 
@@ -176,6 +178,11 @@ class Option:
             assert self.data
 
         except (KeyError, AssertionError):
+            if self._expiration in self._exp:  # Date is in expirations list but no data for it
+                self.skip_dates[opt_type].add(self._expiration)
+                self._exp.remove(self._expiration)
+                self._has_run = False
+
             if all((d, m, y)) and not self._has_run and not strict:
                 closest_date = min(self._exp, key=lambda x: abs(x - self._expiration))
                 print('No options listed for given date, using %s instead' % closest_date.strftime(DATE_FORMAT))
