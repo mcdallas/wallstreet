@@ -151,7 +151,7 @@ class Option:
     def __new__(cls, *args, **kwargs):
         instance = super().__new__(cls)
         instance._has_run = False  # This is to prevent an infinite loop
-        instance.skip_dates = defaultdict(set)
+        instance._skip_dates = defaultdict(set)  #  In case a date is listed as an expiration date but has only one type of options
         return instance
 
     def __init__(self, quote, opt_type, d=date.today().day, m=date.today().month,
@@ -166,7 +166,7 @@ class Option:
         elif self.source == 'yahoo':
             self._yahoo(quote, d, m, y)
 
-        self._exp = [exp for exp in self._exp if exp not in self.skip_dates[opt_type]]
+        self._exp = [exp for exp in self._exp if exp not in self._skip_dates[opt_type]]
         self.expirations = [exp.strftime(DATE_FORMAT) for exp in self._exp]
         self.expiration = date(y, m, d)
 
@@ -179,7 +179,7 @@ class Option:
 
         except (KeyError, AssertionError):
             if self._expiration in self._exp:  # Date is in expirations list but no data for it
-                self.skip_dates[opt_type].add(self._expiration)
+                self._skip_dates[opt_type].add(self._expiration)
                 self._exp.remove(self._expiration)
                 self._has_run = False
 
