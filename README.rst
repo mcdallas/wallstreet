@@ -66,6 +66,14 @@ or
   >>> g
   Put(ticker=GOOG, expiration='22-01-2016')
 
+Yahoo Finance Support (keep in mind that YF quotes might be delayed):
+
+.. code-block:: Python
+
+    >>> apple = Stock('AAPL', source='yahoo')
+    >>> call = Call('AAPL', strike=apple.price, source='yahoo')
+    No options listed for given date, using 26-05-2017 instead
+    No option for given strike, using 155 instead
 
 Installation
 ------------
