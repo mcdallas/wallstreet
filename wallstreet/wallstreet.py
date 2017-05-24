@@ -72,7 +72,7 @@ class Stock:
 
         query = quote + "." + exchange.upper() if exchange else quote
 
-        if not hasattr(self, 'session_y'):
+        if not hasattr(self, '_session_y'):
             self._session_y = requests.Session()
         r = self._session_y.get(__class__._Y_API + query)
 
@@ -99,9 +99,9 @@ class Stock:
 
         params = {'client': 'ig', 'q': query}
 
-        if not hasattr(self, 'session'):
-            self._session = requests.Session()
-        r = self._session.get(__class__._G_API, params=params)
+        if not hasattr(self, '_session_g'):
+            self._session_g = requests.Session()
+        r = self._session_g.get(__class__._G_API, params=params)
 
         try:
             jayson = r.text.replace('\n', '')
@@ -187,9 +187,9 @@ class Option:
 
         epoch = int(round(mktime(date(y, m, d).timetuple())/86400, 0)*86400)
 
-        if not hasattr(self, 'session_y'):
-            self.session_y = requests.Session()
-        r = self.session_y.get(__class__._Y_API + quote + '?date=' + str(epoch))
+        if not hasattr(self, '_session_y'):
+            self._session_y = requests.Session()
+        r = self._session_y.get(__class__._Y_API + quote + '?date=' + str(epoch))
 
         if r.status_code == 404:
             raise LookupError('Ticker symbol not found.')
@@ -219,10 +219,10 @@ class Option:
 
         params['output'] = 'json'
 
-        if not hasattr(self, 'session'):
-            self.session = requests.Session()
+        if not hasattr(self, '_session_g'):
+            self._session_g = requests.Session()
 
-        r = self.session.get(__class__._G_API, params=params)
+        r = self._session_g.get(__class__._G_API, params=params)
 
         if r.status_code == 400:
             raise LookupError('Ticker symbol not found.')
