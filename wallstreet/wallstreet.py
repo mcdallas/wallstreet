@@ -8,7 +8,7 @@ from wallstreet.constants import DATE_FORMAT, DATETIME_FORMAT
 from wallstreet.blackandscholes import riskfree, BlackandScholes
 
 from functools import wraps
-
+from collections import defaultdict
 
 def parse(val):
     if val == '-':
@@ -89,7 +89,7 @@ class Stock:
         self.exchange = jayson['exchange']
         self.change = jayson['regularMarketChange']
         self.cp = jayson['regularMarketChangePercent']
-        self._last_trade = datetime.fromtimestamp(jayson['regularMarketTime'])
+        self._last_trade = datetime.utcfromtimestamp(jayson['regularMarketTime'])
         self.name = jayson['longName']
 
     def _google(self, quote, exchange=None):
@@ -151,9 +151,10 @@ class Option:
     def __new__(cls, *args, **kwargs):
         instance = super().__new__(cls)
         instance._has_run = False  # This is to prevent an infinite loop
+        instance._skip_dates = defaultdict(set)  #  In case a date is listed as an expiration date but has only one type of options
         return instance
 
-    def __init__(self, quote, d=date.today().day, m=date.today().month,
+    def __init__(self, quote, opt_type, d=date.today().day, m=date.today().month,
                  y=date.today().year, strict=False, source='google'):
 
         self.source = source.lower()
@@ -165,22 +166,30 @@ class Option:
         elif self.source == 'yahoo':
             self._yahoo(quote, d, m, y)
 
+        self._exp = [exp for exp in self._exp if exp not in self._skip_dates[opt_type]]
         self.expirations = [exp.strftime(DATE_FORMAT) for exp in self._exp]
         self.expiration = date(y, m, d)
 
         try:
-            self.calls = self.data['calls']
-            self.puts = self.data['puts']
-            assert self.calls and self.puts
+            if opt_type == 'Call':
+                self.data = self.data['calls']
+            elif opt_type == 'Put':
+                self.data = self.data['puts']
+            assert self.data
 
         except (KeyError, AssertionError):
+            if self._expiration in self._exp:  # Date is in expirations list but no data for it
+                self._skip_dates[opt_type].add(self._expiration)
+                self._exp.remove(self._expiration)
+                self._has_run = False
+
             if all((d, m, y)) and not self._has_run and not strict:
                 closest_date = min(self._exp, key=lambda x: abs(x - self._expiration))
                 print('No options listed for given date, using %s instead' % closest_date.strftime(DATE_FORMAT))
                 self._has_run = True
                 self.__init__(quote, closest_date.day, closest_date.month, closest_date.year, source=source)
             else:
-                raise ValueError('Possible expiration dates for this stock are:', self.expirations) from None
+                raise ValueError('Possible expiration dates for this option are:', self.expirations) from None
 
     def _yahoo(self, quote, d, m, y):
         """ Collects data from Yahoo Finance API """
@@ -262,12 +271,7 @@ class Call(Option):
 
         quote = quote.upper()
         kw = {'d': d, 'm': m, 'y': y, 'strict': strict, 'source': source}
-        super().__init__(quote, **kw)
-
-        if self.__class__.Option_type == 'Call':
-            self.data = self.calls
-        elif self.__class__.Option_type == 'Put':
-            self.data = self.puts
+        super().__init__(quote, self.__class__.Option_type, **kw)
 
         self.T = (self._expiration - date.today()).days/365
         self.q = 0
