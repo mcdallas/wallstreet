@@ -53,7 +53,7 @@ def strike_required(func):
 
 
 class Stock:
-    _G_API = 'http://finance.google.com/finance/info'
+    _G_API = 'http://finance.google.com/finance'
     _Y_API = 'https://query2.finance.yahoo.com/v7/finance/options/'
 
     def __init__(self, quote, exchange=None, source='google'):
@@ -91,13 +91,14 @@ class Stock:
         self.cp = jayson['regularMarketChangePercent']
         self._last_trade = datetime.utcfromtimestamp(jayson['regularMarketTime'])
         self.name = jayson['longName']
+        self.dy = jayson.get('trailingAnnualDividendYield', 0)
 
     def _google(self, quote, exchange=None):
         """ Collects data from Google Finance API """
 
         query = exchange.upper() + ":" + quote if exchange else quote
 
-        params = {'client': 'ig', 'q': query}
+        params = {'output': 'json', 'q': query}
 
         if not hasattr(self, '_session_g'):
             self._session_g = requests.Session()
@@ -124,8 +125,9 @@ class Stock:
         except ValueError:
             self.change = jayson['c']
             self.cp = jayson['cp']
-        self._last_trade = datetime.strptime(jayson['lt_dts'], '%Y-%m-%dT%H:%M:%SZ')
-        self.name = None
+        self._last_trade = None
+        self.name = jayson['name']
+        self.dy = parse(jayson.get('dy') or 0)/100
 
     def update(self):
         self.__init__(self._attempted_ticker, exchange=self._attempted_exchange, source=self.source)
@@ -140,6 +142,8 @@ class Stock:
 
     @property
     def last_trade(self):
+        if not self._last_trade:
+            return None
         self.update()
         return self._last_trade.strftime(DATETIME_FORMAT)
 
@@ -274,7 +278,7 @@ class Call(Option):
         super().__init__(quote, self.__class__.Option_type, **kw)
 
         self.T = (self._expiration - date.today()).days/365
-        self.q = 0
+        self.q = self.underlying.dy
         self.ticker = quote
         self.strike = None
         self.strikes = tuple(parse(dic['strike']) for dic in self.data
