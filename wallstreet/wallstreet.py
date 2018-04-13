@@ -90,7 +90,7 @@ class Stock:
         self.change = jayson['regularMarketChange']
         self.cp = jayson['regularMarketChangePercent']
         self._last_trade = datetime.utcfromtimestamp(jayson['regularMarketTime'])
-        self.name = jayson['longName']
+        self.name = jayson.get('longName', '')
         self.dy = jayson.get('trailingAnnualDividendYield', 0)
 
     def _google(self, quote, exchange=None):
