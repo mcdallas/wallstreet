@@ -1,8 +1,9 @@
 import requests
 import re, json
 
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from time import mktime
+from io import StringIO
 
 from wallstreet.constants import DATE_FORMAT, DATETIME_FORMAT
 from wallstreet.blackandscholes import riskfree, BlackandScholes
@@ -51,6 +52,43 @@ def strike_required(func):
         else:
             raise AttributeError('Use set_strike() method first')
     return deco
+
+
+class YahooFinanceHistory:
+    timeout = 2
+    crumb_link = 'https://finance.yahoo.com/quote/{0}/history?p={0}'
+    crumble_regex = r'CrumbStore":{"crumb":"(.*?)"}'
+    quote_link = 'https://query1.finance.yahoo.com/v7/finance/download/{quote}?period1={dfrom}&period2={dto}&interval=1d&events=history&crumb={crumb}'
+
+    def __init__(self, symbol, days_back=7):
+        self.symbol = symbol
+        self.session = requests.Session()
+        self.dt = timedelta(days=days_back)
+
+    def get_crumb(self):
+        response = self.session.get(self.crumb_link.format(self.symbol), timeout=self.timeout)
+        response.raise_for_status()
+        match = re.search(self.crumble_regex, response.text)
+        if not match:
+            raise ValueError('Could not get crumb from Yahoo Finance')
+        else:
+            self.crumb = match.group(1)
+
+    def get_quote(self):
+        try:
+            import pandas as pd
+        except ImportError:
+            print('This functionality requires pandas to be installed')
+            return
+        if not hasattr(self, 'crumb') or len(self.session.cookies) == 0:
+            self.get_crumb()
+        now = datetime.utcnow()
+        dateto = int(now.timestamp())
+        datefrom = int((now - self.dt).timestamp())
+        url = self.quote_link.format(quote=self.symbol, dfrom=datefrom, dto=dateto, crumb=self.crumb)
+        response = self.session.get(url)
+        response.raise_for_status()
+        return pd.read_csv(StringIO(response.text), parse_dates=['Date'])
 
 
 class Stock:
@@ -147,6 +185,10 @@ class Stock:
             return None
         self.update()
         return self._last_trade.strftime(DATETIME_FORMAT)
+
+    def historical(self, days_back=30):
+
+        return YahooFinanceHistory(symbol=self.ticker, days_back=days_back).get_quote()
 
 
 class Option:
