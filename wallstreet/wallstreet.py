@@ -10,6 +10,7 @@ from wallstreet.blackandscholes import riskfree, BlackandScholes
 from functools import wraps
 from collections import defaultdict
 
+
 def parse(val):
     if val == '-':
         return 0
@@ -56,7 +57,7 @@ class Stock:
     _G_API = 'http://finance.google.com/finance'
     _Y_API = 'https://query2.finance.yahoo.com/v7/finance/options/'
 
-    def __init__(self, quote, exchange=None, source='google'):
+    def __init__(self, quote, exchange=None, source='yahoo'):
         quote = quote.upper()
         self._attempted_ticker = quote
         self._attempted_exchange = exchange
@@ -159,7 +160,7 @@ class Option:
         return instance
 
     def __init__(self, quote, opt_type, d=date.today().day, m=date.today().month,
-                 y=date.today().year, strict=False, source='google'):
+                 y=date.today().year, strict=False, source='yahoo'):
 
         self.source = source.lower()
         self.underlying = Stock(quote, source=self.source)
@@ -271,7 +272,7 @@ class Call(Option):
     Option_type = 'Call'
 
     def __init__(self, quote, d=date.today().day, m=date.today().month,
-                 y=date.today().year, strike=None, strict=False, source='google'):
+                 y=date.today().year, strike=None, strict=False, source='yahoo'):
 
         quote = quote.upper()
         kw = {'d': d, 'm': m, 'y': y, 'strict': strict, 'source': source}
