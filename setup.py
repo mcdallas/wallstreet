@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='wallstreet',
-    version='0.2',
+    version='0.3',
     description='Real-time Stock and Option tools',
     url='https://github.com/mcdallas/wallstreet',
     author='Mike Dallas',
@@ -32,5 +32,5 @@ setup(
         'Programming Language :: Python :: 3.5',
     ],
     keywords='stocks options finance market shares greeks implied volatility real-time',
-    install_requires=['requests', 'beautifulsoup4'],
+    install_requires=['requests', 'beautifulsoup4', 'scipy'],
 )
