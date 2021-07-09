@@ -12,7 +12,6 @@ from wallstreet.blackandscholes import riskfree, BlackandScholes
 from functools import wraps
 from collections import defaultdict
 
-
 def parse(val):
     if val == '-':
         return 0
@@ -26,6 +25,16 @@ def parse(val):
         return int(val)
     return val
 
+# send headers=headers on every session.get request to add a user agent to the header per https://stackoverflow.com/questions/10606133/sending-user-agent-using-requests-library-in-python
+def get_headers(agent='Mozilla/5.0'):
+    headers = requests.utils.default_headers()
+    headers.update(
+        {
+            'User-Agent': agent,
+        }
+    )
+    
+    return headers
 
 class ClassPropertyDescriptor:
     def __init__(self, f):
@@ -68,7 +77,8 @@ class YahooFinanceHistory:
         self.frequency = {'m': 'mo', 'w': 'wk', 'd': 'd'}[frequency]
 
     def get_crumb(self):
-        response = self.session.get(self.crumb_link.format(self.symbol), timeout=self.timeout)
+        headers = get_headers()
+        response = self.session.get(self.crumb_link.format(self.symbol), timeout=self.timeout, headers=headers)
         response.raise_for_status()
         sleep(0.5)
         match = re.search(self.crumb_regex, response.text)
@@ -91,7 +101,8 @@ class YahooFinanceHistory:
         url = self.quote_link.format(quote=self.symbol)
         params = {'period1': datefrom, 'period2': dateto, 'interval': f'1{self.frequency}', 'events': 'history', 'crumb': self.crumb}
         param_string = urlencode(params).replace('%5Cu002F', '/')
-        response = self.session.get(url, params=param_string)
+        headers = get_headers()
+        response = self.session.get(url, params=param_string, headers=headers)
         response.raise_for_status()
         return pd.read_csv(StringIO(response.text), parse_dates=['Date'])
 
@@ -118,7 +129,8 @@ class Stock:
 
         if not hasattr(self, '_session_y'):
             self._session_y = requests.Session()
-        r = self._session_y.get(__class__._Y_API + query)
+        headers = get_headers()
+        r = self._session_y.get(__class__._Y_API + query, headers=headers)
 
         if r.status_code == 404:
             raise LookupError('Ticker symbol not found.')
@@ -146,7 +158,8 @@ class Stock:
 
         if not hasattr(self, '_session_g'):
             self._session_g = requests.Session()
-        r = self._session_g.get(__class__._G_API, params=params)
+        headers = get_headers()
+        r = self._session_g.get(__class__._G_API, params=params, headers=headers)
 
         try:
             jayson = r.text.replace('\n', '')
@@ -249,7 +262,8 @@ class Option:
 
         if not hasattr(self, '_session_y'):
             self._session_y = requests.Session()
-        r = self._session_y.get(__class__._Y_API + quote + '?date=' + str(epoch))
+        headers = get_headers()
+        r = self._session_y.get(__class__._Y_API + quote + '?date=' + str(epoch), headers=headers)
 
         if r.status_code == 404:
             raise LookupError('Ticker symbol not found.')
@@ -282,7 +296,8 @@ class Option:
         if not hasattr(self, '_session_g'):
             self._session_g = requests.Session()
 
-        r = self._session_g.get(__class__._G_API, params=params)
+        headers = get_headers()
+        r = self._session_g.get(__class__._G_API, params=params, headers=headers)
 
         if r.status_code == 400:
             raise LookupError('Ticker symbol not found.')
