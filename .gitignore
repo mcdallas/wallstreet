@@ -59,3 +59,6 @@ docs/_build/
 target/
 
 .idea
+
+.python-version
+*.ipynb

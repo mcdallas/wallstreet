@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "wallstreet"
+version = "0.3.1"
+description = "Stock and Option tools"
+authors = ["Mike Dallas <mcdallas@protonmail.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.5"
+requests = "^2.12"
+beautifulsoup4 = "^4.5"
+scipy = "^1.5"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
