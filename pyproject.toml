@@ -8,7 +8,6 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = "^3.5"
 requests = "^2.12"
-beautifulsoup4 = "^4.5"
 scipy = "^1.5"
 
 [tool.poetry.dev-dependencies]
