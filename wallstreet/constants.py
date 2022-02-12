@@ -2,8 +2,7 @@
 DATE_FORMAT = '%d-%m-%Y'
 DATETIME_FORMAT = '%e %b %Y %H:%M:%S'
 
-TREASURY_URL = "http://www.treasury.gov/resource-center/data-chart-center/interest-rates/Pages/TextView.aspx?data=yield"
-
+TREASURY_URL = "https://home.treasury.gov/sites/default/files/interest-rates/yield.xml"
 DELTA_DIFFERENTIAL = 1.e-3
 VEGA_DIFFERENTIAL = 1.e-4
 GAMMA_DIFFERENTIAL = 1.e-3
