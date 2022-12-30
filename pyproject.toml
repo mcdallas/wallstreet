@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "wallstreet"
-version = "0.3.1"
+version = "0.3.2"
 description = "Stock and Option tools"
 authors = ["Mike Dallas <mcdallas@protonmail.com>"]
 license = "MIT"

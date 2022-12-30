@@ -2,11 +2,11 @@ from setuptools import setup
 
 setup(
     name='wallstreet',
-    version='0.3.1',
+    version='0.3.2',
     description='Real-time Stock and Option tools',
     url='https://github.com/mcdallas/wallstreet',
     author='Mike Dallas',
-    author_email='mc-dallas@hotmail.com',
+    author_email='mcdallas@protonmail.com',
     license='MIT',
     packages=['wallstreet'],
     classifiers=[
