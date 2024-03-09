@@ -1,14 +1,15 @@
 [tool.poetry]
 name = "wallstreet"
-version = "0.3.2"
+version = "0.4.0"
 description = "Stock and Option tools"
 authors = ["Mike Dallas <mcdallas@protonmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.5"
-requests = "^2.12"
-scipy = "^1.5"
+python = "^3.9"
+requests = "^2.31"
+scipy = "^1.12"
+yfinance = "^0.2.37"
 
 [tool.poetry.dev-dependencies]
 

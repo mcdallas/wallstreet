@@ -2,7 +2,7 @@ import requests
 import xml.etree.ElementTree as ET
 
 from scipy.interpolate import interp1d
-from scipy import sqrt, log, exp
+from numpy import sqrt, log, exp
 from scipy.stats import norm
 from scipy.optimize import fsolve
 
