@@ -1,6 +1,6 @@
 
 DATE_FORMAT = '%d-%m-%Y'
-DATETIME_FORMAT = '%e %b %Y %H:%M:%S'
+DATETIME_FORMAT = '%d %b %Y %H:%M:%S'
 
 TREASURY_URL = "https://home.treasury.gov/sites/default/files/interest-rates/yield.xml"
 DELTA_DIFFERENTIAL = 1.e-3
