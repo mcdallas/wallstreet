@@ -1,10 +1,9 @@
 import requests
-import json
+from yfinance.data import YfData
 
 from datetime import datetime, date, timedelta
-from time import mktime, sleep
+from time import mktime
 from io import StringIO
-from urllib.parse import urlencode
 
 from wallstreet.constants import DATE_FORMAT, DATETIME_FORMAT
 from wallstreet.blackandscholes import riskfree, BlackandScholes
@@ -92,29 +91,25 @@ class YahooFinanceHistory:
 
 
 class Stock:
-    _G_API = 'http://finance.google.com/finance'
     _Y_API = 'https://query2.finance.yahoo.com/v7/finance/options/'
 
     def __init__(self, quote, exchange=None, source='yahoo'):
         quote = quote.upper()
         self._attempted_ticker = quote
         self._attempted_exchange = exchange
+        self.session = requests.Session()
+        self._yfdata = YfData(session=self.session)
 
         self.source = source.lower()
-        if self.source == 'google':
-            self._google(quote, exchange)
-        elif self.source == 'yahoo':
-            self._yahoo(quote, exchange)
+        self._yahoo(quote, exchange)
 
     def _yahoo(self, quote, exchange=None):
         """ Collects data from Yahoo Finance API """
 
         query = quote + "." + exchange.upper() if exchange else quote
 
-        if not hasattr(self, '_session_y'):
-            self._session_y = requests.Session()
-        headers = get_headers()
-        r = self._session_y.get(__class__._Y_API + query, headers=headers)
+        url = __class__._Y_API + query
+        r = self._yfdata.get(url)
 
         if r.status_code == 404:
             raise LookupError('Ticker symbol not found.')
@@ -132,43 +127,6 @@ class Stock:
         self._last_trade = datetime.utcfromtimestamp(jayson['regularMarketTime'])
         self.name = jayson.get('longName', '')
         self.dy = jayson.get('trailingAnnualDividendYield', 0)
-
-    def _google(self, quote, exchange=None):
-        """ Collects data from Google Finance API """
-
-        query = exchange.upper() + ":" + quote if exchange else quote
-
-        params = {'output': 'json', 'q': query}
-
-        if not hasattr(self, '_session_g'):
-            self._session_g = requests.Session()
-        headers = get_headers()
-        r = self._session_g.get(__class__._G_API, params=params, headers=headers)
-
-        try:
-            jayson = r.text.replace('\n', '')
-            jayson = json.loads(jayson[2:])[0]
-            self.ticker = jayson['t']
-        except:
-            self.ticker = None
-
-        if r.status_code == 400 or self.ticker != query.split(':')[-1]:
-            raise LookupError('Ticker symbol not found. Try adding the exchange parameter')
-        else:
-            r.raise_for_status()
-
-        self.id = jayson["id"]
-        self.exchange = jayson['e']
-        self._price = parse(jayson['l'])
-        try:
-            self.change = parse(jayson['c'])
-            self.cp = parse(jayson['cp'])
-        except ValueError:
-            self.change = jayson['c']
-            self.cp = jayson['cp']
-        self._last_trade = None
-        self.name = jayson['name']
-        self.dy = parse(jayson.get('dy') or 0)/100
 
     def update(self):
         self.__init__(self._attempted_ticker, exchange=self._attempted_exchange, source=self.source)
@@ -193,7 +151,6 @@ class Stock:
 
 
 class Option:
-    _G_API = 'https://www.google.com/finance/option_chain'
     _Y_API = 'https://query2.finance.yahoo.com/v7/finance/options/'
 
     def __new__(cls, *args, **kwargs):
@@ -208,11 +165,7 @@ class Option:
         self.source = source.lower()
         self.underlying = Stock(quote, source=self.source)
 
-        if self.source == 'google':
-            self._google(quote, d, m, y)
-
-        elif self.source == 'yahoo':
-            self._yahoo(quote, d, m, y)
+        self._yahoo(quote, d, m, y)
 
         self._exp = [exp for exp in self._exp if exp not in self._skip_dates[opt_type]]
         self.expirations = [exp.strftime(DATE_FORMAT) for exp in self._exp]
@@ -244,11 +197,10 @@ class Option:
 
         epoch = int(round(mktime(date(y, m, d).timetuple())/86400, 0)*86400)
 
-        if not hasattr(self, '_session_y'):
-            self._session_y = requests.Session()
-        headers = get_headers()
-        r = self._session_y.get(__class__._Y_API + quote + '?date=' + str(epoch), headers=headers)
-
+        self._yfdata = self.underlying._yfdata
+        
+        r = self._yfdata.get(__class__._Y_API + quote + '?date=' + str(epoch))
+        
         if r.status_code == 404:
             raise LookupError('Ticker symbol not found.')
         else:
@@ -262,40 +214,6 @@ class Option:
             raise LookupError('No options listed for this stock.')
 
         self._exp = [datetime.utcfromtimestamp(i).date() for i in json['optionChain']['result'][0]['expirationDates']]
-
-    def _google(self, quote, d, m, y):
-        """ Collects data from Google Finance API """
-
-        quote = quote.upper()
-        query = str(quote)
-
-        params = {'q': query}
-
-        if d: params['expd'] = str(d)
-        if m: params['expm'] = str(m)
-        if y: params['expy'] = str(y)
-
-        params['output'] = 'json'
-
-        if not hasattr(self, '_session_g'):
-            self._session_g = requests.Session()
-
-        headers = get_headers()
-        r = self._session_g.get(__class__._G_API, params=params, headers=headers)
-
-        if r.status_code == 400:
-            raise LookupError('Ticker symbol not found.')
-        else:
-            r.raise_for_status()
-
-        valid_json = re.sub(r'(?<={|,)([a-zA-Z][a-zA-Z0-9_]*)(?=:)', r'"\1"', r.text)
-        self.data = json.loads(valid_json)
-
-        if 'expirations' not in self.data:
-            raise LookupError('No options listed for this stock.')
-
-        self._exp = [date(int(dic['y']), int(dic['m']), int(dic['d']))
-                     for dic in self.data['expirations']]
 
     @classproperty
     def rate(cls):
