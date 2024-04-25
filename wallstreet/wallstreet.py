@@ -244,7 +244,7 @@ class Call(Option):
         self.T = (self._expiration - date.today()).days/365
         self.q = self.underlying.dy
         self.ticker = quote
-        self.strike = None
+        self.strike = strike
         self.strikes = tuple(parse(dic['strike']) for dic in self.data
                              if dic.get('p') != '-')
         if strike:
